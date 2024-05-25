@@ -66,12 +66,15 @@ class EqualWeightPortfolio:
         """
         TODO: Complete Task 1 Below
         """
-
+        avg_weight = 1 / len(assets)
+        self.portfolio_weights[assets] = avg_weight
         """
         TODO: Complete Task 1 Above
         """
         self.portfolio_weights.ffill(inplace=True)
         self.portfolio_weights.fillna(0, inplace=True)
+        #print("EQW")
+        #print(self.portfolio_weights.head())  
 
     def calculate_portfolio_returns(self):
         # Ensure weights are calculated
@@ -113,10 +116,24 @@ class RiskParityPortfolio:
 
         # Calculate the portfolio weights
         self.portfolio_weights = pd.DataFrame(index=df.index, columns=df.columns)
-
+        #print(self.portfolio_weights.head())  
         """
         TODO: Complete Task 2 Below
         """
+        rolling_volatilities = df_returns[assets].rolling(window=self.lookback).std().shift(1)
+        #print("Rolling Volatilities")
+        #print(rolling_volatilities.head(60))  
+        inverse_volatilities = 1 / rolling_volatilities
+        sum_inverse_volatilities = inverse_volatilities.sum(axis=1)
+
+
+        self.portfolio_weights = pd.DataFrame(index=df_returns.index, columns=df_returns.columns, data=0)  
+
+        for asset in assets:
+            self.portfolio_weights[asset] = inverse_volatilities[asset] / sum_inverse_volatilities
+
+        zero_date = '2019-03-15'#?????????
+        self.portfolio_weights.loc[:zero_date] = 0
 
         """
         TODO: Complete Task 2 Above
@@ -124,6 +141,8 @@ class RiskParityPortfolio:
 
         self.portfolio_weights.ffill(inplace=True)
         self.portfolio_weights.fillna(0, inplace=True)
+        #print("RP:")
+        #print(self.portfolio_weights.head(60))
 
     def calculate_portfolio_returns(self):
         # Ensure weights are calculated
@@ -194,7 +213,13 @@ class MeanVariancePortfolio:
                 # NOTE: You can modify the following code
                 w = model.addMVar(n, name="w", ub=1)
                 model.setObjective(w.sum(), gp.GRB.MAXIMIZE)
+                                
+                portfolio_return = mu @ w
+                portfolio_risk = w @ Sigma @ w
+                objective = portfolio_return - (gamma / 2) * portfolio_risk
+                model.setObjective(objective, gp.GRB.MAXIMIZE)
 
+                model.addConstr(w.sum() == 1, name="budget")
                 """
                 TODO: Complete Task 3 Below
                 """
